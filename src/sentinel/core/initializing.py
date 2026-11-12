@@ -358,3 +358,16 @@ class SentinelConfig:
     def export_dir(self, value: str) -> None:
         """Set the directory for exporting CESR files."""
         self._data["export_dir"] = value
+
+    @property
+    def roots_of_trust_path(self) -> Optional[str]:
+        """Path to the roots of trust configuration file."""
+        return self._data.get("roots_of_trust")
+
+    @roots_of_trust_path.setter
+    def roots_of_trust_path(self, value: Optional[str]) -> None:
+        """Set the path to the roots of trust configuration file."""
+        if value is None:
+            self._data.pop("roots_of_trust", None)
+        else:
+            self._data["roots_of_trust"] = value

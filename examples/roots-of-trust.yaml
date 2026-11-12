@@ -1,0 +1,140 @@
+# Sentinel Roots of Trust Configuration
+# File: roots-of-trust.yaml
+#
+# This file defines the roots of trust that Sentinel (acting as a Verifier)
+# will accept for credential chain validation.
+
+roots_of_trust:
+  # Healthcare Provider Authorization Chain
+  - id: "healthcare-provider-chain"
+    title: "Healthcare Provider Authorization Chain"
+    description: "Validates healthcare provider credentials through vLEI chain"
+    enabled: true
+
+    # Entry point: the credential schema being presented for verification
+    entry_point:
+      schema_said: "EHealthcareProviderAuth_1234567890"
+      title: "Healthcare Provider Authorization"
+
+    # Chain definition: ordered list from leaf (0) to root (N)
+    chain:
+      # Level 0: Presented credential (Healthcare Provider Authorization)
+      - level: 0
+        schema:
+          said: "EHealthcareProviderAuth_1234567890"
+          title: "Healthcare Provider Authorization"
+        issuer:
+          # Specific AIDs allowed to issue this credential
+          aid:
+            - "ERegionalHealthAuth_AAAA"
+            - "EStateHealthDept_BBBB"
+          aliases:
+            "ERegionalHealthAuth_AAAA": "Regional Health Authority"
+            "EStateHealthDept_BBBB": "State Health Department"
+          # Allow delegates of these issuers
+          allow_delegator: true
+          allow_delegator_chain: false
+        edges:
+          - label: "auth"
+            target:
+              type: "parent"
+            required: true
+        attributes:
+          # LEI must be present
+          - path: "a.LEI"
+            operator: "exists"
+          # Status must be active
+          - path: "a.status"
+            operator: "equals"
+            value: "active"
+          # Must not be expired (validUntil >= today)
+          - path: "a.validUntil"
+            operator: "gte"
+            value: "${today}"
+
+      # Level 1: QVI Credential
+      - level: 1
+        schema:
+          said: "EQVI_Schema_2222222222"
+          title: "Qualified vLEI Issuer"
+        issuer:
+          # Any QVI can issue, but must be delegated properly
+          aid: "any"
+          allow_delegator: true
+          allow_delegator_chain: true
+        edges:
+          - label: "qviAuth"
+            target:
+              type: "parent"
+            required: true
+
+      # Level 2: Root (GLEIF)
+      - level: 2
+        schema:
+          said: "EGLEIF_Root_3333333333"
+          title: "GLEIF Root of Trust"
+        issuer:
+          # Only GLEIF can issue root credentials
+          aid:
+            - "EGLEIF_Official_AID_HERE"
+          aliases:
+            "EGLEIF_Official_AID_HERE": "GLEIF"
+          allow_delegator: false
+          allow_delegator_chain: false
+        edges: []
+        attributes:
+          - path: "a.type"
+            operator: "equals"
+            value: "root-of-trust"
+
+    # Validation options
+    options:
+      require_non_revoked: true
+      oobi_cache_ttl: 3600
+      strict_oobi_resolution: true
+
+  # Simple single-level credential (no chain)
+  - id: "simple-membership"
+    title: "Simple Membership Credential"
+    description: "Single-level membership credential from trusted issuers"
+    enabled: true
+
+    entry_point:
+      schema_said: "EMembership_Schema_ABCD"
+      title: "Membership Credential"
+
+    chain:
+      - level: 0
+        schema:
+          said: "EMembership_Schema_ABCD"
+          title: "Membership Credential"
+        issuer:
+          aid:
+            - "ETrustedOrg_1111"
+            - "ETrustedOrg_2222"
+          aliases:
+            "ETrustedOrg_1111": "Trusted Organization 1"
+            "ETrustedOrg_2222": "Trusted Organization 2"
+        edges: []
+        attributes:
+          - path: "a.membershipType"
+            operator: "in"
+            value: ["premium", "standard", "basic"]
+          - path: "a.isActive"
+            operator: "equals"
+            value: true
+
+    options:
+      require_non_revoked: true
+
+  # Disabled root (for testing or future use)
+  - id: "future-root"
+    title: "Future Credential Chain"
+    description: "Planned but not yet active"
+    enabled: false
+
+    entry_point:
+      schema_said: "EFuture_Schema"
+      title: "Future Schema"
+
+    chain: []
